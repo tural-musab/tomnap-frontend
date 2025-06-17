@@ -1,7 +1,28 @@
 import { HttpTypes } from "@medusajs/types"
 import { NextRequest, NextResponse } from "next/server"
 
-const BACKEND_URL = process.env.MEDUSA_BACKEND_URL
+// Safe URL validation and fallback
+function getValidBackendUrl(): string | null {
+  const url = process.env.MEDUSA_BACKEND_URL || process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
+  
+  if (!url) {
+    return null
+  }
+  
+  // Clean the URL - remove any extra characters like "echo," or quotes
+  const cleanUrl = url.replace(/^(echo,|"|')+|["']+$/g, '').trim()
+  
+  // Validate URL format
+  try {
+    new URL(cleanUrl)
+    return cleanUrl
+  } catch (error) {
+    console.error('Invalid BACKEND_URL format:', cleanUrl, error)
+    return null
+  }
+}
+
+const BACKEND_URL = getValidBackendUrl()
 const PUBLISHABLE_API_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
 const DEFAULT_REGION = process.env.NEXT_PUBLIC_DEFAULT_REGION || "us"
 
