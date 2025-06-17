@@ -53,54 +53,73 @@ export async function generateStaticParams() {
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params
   const { handle } = params
-  const region = await getRegion(params.countryCode)
+  try {
+    const region = await getRegion(params.countryCode)
 
-  if (!region) {
-    notFound()
-  }
+    if (!region) {
+      return {
+        title: "Product | Medusa Store",
+        description: "Browse our products.",
+      }
+    }
 
-  const product = await listProducts({
-    countryCode: params.countryCode,
-    queryParams: { handle },
-  }).then(({ response }) => response.products[0])
+    const product = await listProducts({
+      countryCode: params.countryCode,
+      queryParams: { handle },
+    }).then(({ response }) => response.products[0])
 
-  if (!product) {
-    notFound()
-  }
+    if (!product) {
+      return {
+        title: "Product | Medusa Store",
+        description: "Product not found.",
+      }
+    }
 
-  return {
-    title: `${product.title} | Medusa Store`,
-    description: `${product.title}`,
-    openGraph: {
+    return {
       title: `${product.title} | Medusa Store`,
       description: `${product.title}`,
-      images: product.thumbnail ? [product.thumbnail] : [],
-    },
+      openGraph: {
+        title: `${product.title} | Medusa Store`,
+        description: `${product.title}`,
+        images: product.thumbnail ? [product.thumbnail] : [],
+      },
+    }
+  } catch (error) {
+    console.warn('Failed to generate metadata for product, using fallback:', error)
+    return {
+      title: "Product | Medusa Store",
+      description: "Browse our products.",
+    }
   }
 }
 
 export default async function ProductPage(props: Props) {
   const params = await props.params
-  const region = await getRegion(params.countryCode)
+  try {
+    const region = await getRegion(params.countryCode)
 
-  if (!region) {
+    if (!region) {
+      notFound()
+    }
+
+    const pricedProduct = await listProducts({
+      countryCode: params.countryCode,
+      queryParams: { handle: params.handle },
+    }).then(({ response }) => response.products[0])
+
+    if (!pricedProduct) {
+      notFound()
+    }
+
+    return (
+      <ProductTemplate
+        product={pricedProduct}
+        region={region}
+        countryCode={params.countryCode}
+      />
+    )
+  } catch (error) {
+    console.warn('Failed to load product, returning not found:', error)
     notFound()
   }
-
-  const pricedProduct = await listProducts({
-    countryCode: params.countryCode,
-    queryParams: { handle: params.handle },
-  }).then(({ response }) => response.products[0])
-
-  if (!pricedProduct) {
-    notFound()
-  }
-
-  return (
-    <ProductTemplate
-      product={pricedProduct}
-      region={region}
-      countryCode={params.countryCode}
-    />
-  )
 }

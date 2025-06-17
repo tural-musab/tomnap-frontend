@@ -18,52 +18,66 @@ type Props = {
 export const PRODUCT_LIMIT = 12
 
 export async function generateStaticParams() {
-  const { collections } = await listCollections({
-    fields: "*products",
-  })
+  try {
+    const { collections } = await listCollections({
+      fields: "*products",
+    })
 
-  if (!collections) {
+    if (!collections) {
+      return []
+    }
+
+    const regions = await listRegions()
+    const countryCodes = regions
+      ?.map((r: StoreRegion) => r.countries?.map((c) => c.iso_2))
+      .flat()
+      .filter(Boolean) as string[]
+
+    const collectionHandles = collections.map(
+      (collection: StoreCollection) => collection.handle
+    )
+
+    const staticParams = countryCodes
+      ?.map((countryCode: string) =>
+        collectionHandles.map((handle: string | undefined) => ({
+          countryCode,
+          handle,
+        }))
+      )
+      .flat()
+
+    return staticParams || []
+  } catch (error) {
+    console.warn('Failed to generate static params for collections, using empty array:', error)
     return []
   }
-
-  const countryCodes = await listRegions().then(
-    (regions: StoreRegion[]) =>
-      regions
-        ?.map((r) => r.countries?.map((c) => c.iso_2))
-        .flat()
-        .filter(Boolean) as string[]
-  )
-
-  const collectionHandles = collections.map(
-    (collection: StoreCollection) => collection.handle
-  )
-
-  const staticParams = countryCodes
-    ?.map((countryCode: string) =>
-      collectionHandles.map((handle: string | undefined) => ({
-        countryCode,
-        handle,
-      }))
-    )
-    .flat()
-
-  return staticParams
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params
-  const collection = await getCollectionByHandle(params.handle)
+  try {
+    const collection = await getCollectionByHandle(params.handle)
 
-  if (!collection) {
-    notFound()
+    if (!collection) {
+      return {
+        title: "Collection | Medusa Store",
+        description: "Browse our collections.",
+      }
+    }
+
+    const metadata = {
+      title: `${collection.title} | Medusa Store`,
+      description: `${collection.title} collection`,
+    } as Metadata
+
+    return metadata
+  } catch (error) {
+    console.warn('Failed to generate metadata for collection, using fallback:', error)
+    return {
+      title: "Collection | Medusa Store",
+      description: "Browse our collections.",
+    }
   }
-
-  const metadata = {
-    title: `${collection.title} | Medusa Store`,
-    description: `${collection.title} collection`,
-  } as Metadata
-
-  return metadata
 }
 
 export default async function CollectionPage(props: Props) {
@@ -71,20 +85,25 @@ export default async function CollectionPage(props: Props) {
   const params = await props.params
   const { sortBy, page } = searchParams
 
-  const collection = await getCollectionByHandle(params.handle).then(
-    (collection: StoreCollection) => collection
-  )
+  try {
+    const collection = await getCollectionByHandle(params.handle).then(
+      (collection: StoreCollection) => collection
+    )
 
-  if (!collection) {
+    if (!collection) {
+      notFound()
+    }
+
+    return (
+      <CollectionTemplate
+        collection={collection}
+        page={page}
+        sortBy={sortBy}
+        countryCode={params.countryCode}
+      />
+    )
+  } catch (error) {
+    console.warn('Failed to load collection, returning not found:', error)
     notFound()
   }
-
-  return (
-    <CollectionTemplate
-      collection={collection}
-      page={page}
-      sortBy={sortBy}
-      countryCode={params.countryCode}
-    />
-  )
 }

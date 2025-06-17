@@ -16,30 +16,34 @@ type Props = {
 }
 
 export async function generateStaticParams() {
-  const product_categories = await listCategories()
+  try {
+    const product_categories = await listCategories()
 
-  if (!product_categories) {
+    if (!product_categories) {
+      return []
+    }
+
+    const regions = await listRegions()
+    const countryCodes = regions?.map((r: StoreRegion) => r.countries?.map((c) => c.iso_2)).flat()
+
+    const categoryHandles = product_categories.map(
+      (category: any) => category.handle
+    )
+
+    const staticParams = countryCodes
+      ?.map((countryCode: string | undefined) =>
+        categoryHandles.map((handle: any) => ({
+          countryCode,
+          category: [handle],
+        }))
+      )
+      .flat()
+
+    return staticParams || []
+  } catch (error) {
+    console.warn('Failed to generate static params for categories, using empty array:', error)
     return []
   }
-
-  const countryCodes = await listRegions().then((regions: StoreRegion[]) =>
-    regions?.map((r) => r.countries?.map((c) => c.iso_2)).flat()
-  )
-
-  const categoryHandles = product_categories.map(
-    (category: any) => category.handle
-  )
-
-  const staticParams = countryCodes
-    ?.map((countryCode: string | undefined) =>
-      categoryHandles.map((handle: any) => ({
-        countryCode,
-        category: [handle],
-      }))
-    )
-    .flat()
-
-  return staticParams
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
@@ -47,9 +51,9 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   try {
     const productCategory = await getCategoryByHandle(params.category)
 
-    const title = productCategory.name + " | Medusa Store"
+    const title = productCategory?.name + " | Medusa Store"
 
-    const description = productCategory.description ?? `${title} category.`
+    const description = productCategory?.description ?? `${title} category.`
 
     return {
       title: `${title} | Medusa Store`,
@@ -59,7 +63,14 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       },
     }
   } catch (error) {
-    notFound()
+    console.warn('Failed to generate metadata for category, using fallback:', error)
+    return {
+      title: "Category | Medusa Store",
+      description: "Browse our product categories.",
+      alternates: {
+        canonical: `${params.category.join("/")}`,
+      },
+    }
   }
 }
 
@@ -68,18 +79,23 @@ export default async function CategoryPage(props: Props) {
   const params = await props.params
   const { sortBy, page } = searchParams
 
-  const productCategory = await getCategoryByHandle(params.category)
+  try {
+    const productCategory = await getCategoryByHandle(params.category)
 
-  if (!productCategory) {
+    if (!productCategory) {
+      notFound()
+    }
+
+    return (
+      <CategoryTemplate
+        category={productCategory}
+        sortBy={sortBy}
+        page={page}
+        countryCode={params.countryCode}
+      />
+    )
+  } catch (error) {
+    console.warn('Failed to load category, returning not found:', error)
     notFound()
   }
-
-  return (
-    <CategoryTemplate
-      category={productCategory}
-      sortBy={sortBy}
-      page={page}
-      countryCode={params.countryCode}
-    />
-  )
 }
