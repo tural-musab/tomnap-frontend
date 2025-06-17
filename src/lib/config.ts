@@ -1,10 +1,14 @@
 import Medusa from "@medusajs/js-sdk"
 
-// Use environment variable for backend URL, fallback to localhost for development
-let MEDUSA_BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
+const MEDUSA_BACKEND_URL =
+  process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL ||
+  process.env.MEDUSA_BACKEND_URL ||
+  "http://localhost:9000"
 
 export const sdk = new Medusa({
   baseUrl: MEDUSA_BACKEND_URL,
-  debug: process.env.NODE_ENV === "development",
   publishableKey: process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY,
+  maxRetries: 3,
+  timeout: 30000,
+  debug: process.env.NODE_ENV === "development",
 })
