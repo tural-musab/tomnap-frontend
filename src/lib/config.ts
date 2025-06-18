@@ -7,8 +7,6 @@ const MEDUSA_BACKEND_URL =
 
 export const sdk = new Medusa({
   baseUrl: MEDUSA_BACKEND_URL,
-  publishableKey: process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY,
-  maxRetries: 3,
-  timeout: 30000,
+  publishableKey: process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "pk_dummy_key",
   debug: process.env.NODE_ENV === "development",
 })
